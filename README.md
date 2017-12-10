@@ -1,6 +1,8 @@
-[![PayPal donate button](https://img.shields.io/badge/paypal-donate-yellow.svg)](https://www.paypal.me/jishi "Donate once-off to this project using Paypal")
+[![PayPal donate button](https://img.shields.io/badge/paypal-donate-yellow.svg)](https://www.paypal.me/jishi "Donate once-off to this project using Paypal") [![Join the chat at gitter](https://img.shields.io/gitter/room/badges/shields.svg)](https://gitter.im/node-sonos-http-api/Lobby "Need assistance? Join the chat at Gitter.im") 
 
-Feel free to use it as you please. Consider donating if you want to support further development.
+Feel free to use it as you please. Consider donating if you want to support further development. Reach out on the gitter chat if you have issues getting it to run, instead of creating new issues, thank you!
+
+If you are also looking for cloud control (ifttt, public webhooks etc), see the [bronos-client](http://www.bronos.net) project! That pi image also contains an installation of this http-api.  
 
 SONOS HTTP API
 ==============
@@ -89,16 +91,19 @@ The actions supported as of today:
 * resumeall (will resume the ones that was pause on the pauseall call. Useful for doorbell, phone calls, etc. Optional timeout)
 * say
 * sayall
+* saypreset
 * queue
 * clearqueue
 * sleep (values in seconds)
 * linein (only analog linein, not PLAYBAR yet)
 * clip (announce custom mp3 clip)
 * clipall
+* clippreset
 * join / leave  (Grouping actions)
 * sub (on/off/gain/crossover/polarity) See SUB section for more info
 * nightmode (on/off, PLAYBAR only)
 * speechenhancement (on/off, PLAYBAR only)
+* bass/treble (use -10 thru 10 as value. 0 is neutral)
 
 
 State
@@ -134,28 +139,37 @@ Example of a state json:
 	    "shuffle":true,
 	    "repeat":false,
 	    "crossfade":false
-	  }
+	  },
+	  "equalizer": {
+        "bass": 0,
+        "treble": 0,
+        "loudness": true
+      }
 	}
 
 Queue
 -----
 Obtain the current queue list from a specified player. The request will accept:
- - No parameters
+ - limit (optional)
+ - offset (optional, requires limit)
+ - detailed flag (optional, include uri in response)
 
-	`http://localhost:5005/living room/queue`
+	    http://localhost:5005/living room/queue
+	    http://localhost:5005/living room/queue/10 (only return top 10)
+	    http://localhost:5005/living room/queue/10/10 (return result 11-20)
+	    http://localhost:5005/living room/queue/detailed
+	    http://localhost:5005/living room/queue/10/detailed
 
 Example queue response:
 ```
 [
     {
-      "uri": "x-sonos-spotify:spotify%3atrack%3a0AvV49z4EPz5ocYN7eKGAK?sid=9&flags=8224&sn=3",
       "albumArtURI": "/getaa?s=1&u=x-sonos-spotify%3aspotify%253atrack%253a0AvV49z4EPz5ocYN7eKGAK%3fsid%3d9%26flags%3d8224%26sn%3d3",
       "title": "No Diggity",
       "artist": "Blackstreet",
       "album": "Another Level"
     },
     {
-      "uri": "x-sonos-spotify:spotify%3atrack%3a5OQGeJ1ceykovrykZsGhqL?sid=9&flags=8224&sn=3",
       "albumArtURI": "/getaa?s=1&u=x-sonos-spotify%3aspotify%253atrack%253a5OQGeJ1ceykovrykZsGhqL%3fsid%3d9%26flags%3d8224%26sn%3d3",
       "title": "Breathless",
       "artist": "The Corrs",
@@ -332,14 +346,22 @@ Example:
 	    "username": "your-pandora-account-email-address",
 	    "password": "your-pandora-password"
 	  },
-	  "library": { 
-	    "randomQueueLimit": 50 
-	  } 
+	  "spotify": {
+	    "clientId": "your-spotify-application-clientId",
+	    "clientSecret": "your-spotify-application-clientSecret"
+	  },
+	  "library": {
+	    "randomQueueLimit": 50
+	  }
 	}
 ```
 
 Override as it suits you.
 
+Note for Spotify users!
+-----------------------
+
+To use Spotify, go to https://developer.spotify.com/my-applications/#!/applications/create and create a Spotify application to get your client keys. You can name it Sonos or anything else and you don't have to change any values. Use the Client ID and the Client Secret values in the settings.json file as indicated above.
 
 
 Favorites
@@ -370,6 +392,7 @@ Experimental support for TTS. Today the following providers are available:
 * Microsoft Cognitive Services (Bing Text to Speech API)
 * AWS Polly
 * Google (default)
+* macOS say command
 
 It will use the one you configure in settings.json. If you define settings for multiple TTS services, it will not be guaranteed which one it will choose!
 
@@ -640,6 +663,53 @@ Action is:
 	/[Room name]/say/[phrase][/[language_code]][/[announce volume]]
 	/sayall/[phrase][/[language_code]][/[announce volume]]
 
+#### macOS say command
+On macOS the "say" command can be used for text to speech. If your installation runs on macOS you can activate the system TTS by giving an empty configuration:
+
+```json
+{
+  "macSay": {}
+}
+```
+
+Or you can provide a default voice and a speech rate:
+
+```json
+{
+  "macSay": {
+  	"voice" : "Alex",
+  	"rate": 90
+  }
+}
+```
+
+Action is:
+
+	/[Room name]/say/[phrase][/[voice]][/[announce volume]]
+	/sayall/[phrase][/[voice]][/[announce volume]]
+
+Example:
+
+	/Office/say/Hello, dinner is ready
+	/Office/say/Hello, dinner is ready/Agnes
+	/Office/say/Guten morgen/Anna
+	/sayall/Hello, dinner is ready
+	/Office/say/Hello, dinner is ready/90
+	/Office/say/Guten morgen/Anna/90
+
+Supported voices are:
+
+Alex, Alice, Alva, Amelie, Anna, Carmit, Damayanti, Daniel, Diego, Ellen, Fiona, Fred, Ioana, Joana, Jorge, Juan, Kanya, Karen, Kyoko, Laura, Lekha, Luca, Luciana, Maged, Mariska, Mei-Jia, Melina, Milena, Moira, Monica, Nora, Paulina, Samantha, Sara, Satu, Sin-ji, Tessa, Thomas, Ting-Ting, Veena, Victoria, Xander, Yelda, Yuna, Yuri, Zosia, Zuzana
+
+A list of available voices can be printed by this command:
+```
+   say -v '?'
+```
+
+See also https://gist.github.com/mculp/4b95752e25c456d425c6 and https://stackoverflow.com/questions/1489800/getting-list-of-mac-text-to-speech-voices-programmatically
+
+To download more voices go to: System Preferences -> Accessibility -> Speech -> System Voice
+
 Line-in
 -------
 
@@ -706,7 +776,7 @@ Switch "placement adjustment" or more commonly known as phase. 0 = 0Â°, 1 = 180Â
 Spotify and Apple Music (Experimental)
 ----------------------
 
-Allows you to perform your own external searches for Apple Music or Spotify songs or albums and play a specified song or track ID. The Music Search funtionality outlined further below performs a search of its own and plays the specified music. 
+Allows you to perform your own external searches for Apple Music or Spotify songs or albums and play a specified song or track ID. The Music Search funtionality outlined further below performs a search of its own and plays the specified music.
 
 The following endpoints are available:
 
@@ -724,7 +794,7 @@ The following endpoints are available:
 You can find Apple Music song and album IDs via the [iTunes Search
 API](https://affiliate.itunes.apple.com/resources/documentation/itunes-store-web-service-search-api/).
 
-It only handles a single spotify account currently. It will probably use the first account added on your system. 
+It only handles a single spotify account currently. It will probably use the first account added on your system.
 
 
 SiriusXM
@@ -738,14 +808,14 @@ You can specify a SiriusXM channel number or station name and the station will b
 
 Pandora
 ----------------------
-Perform a search for one of your Pandora stations and begin playing. Give the currently playing song a thumbs up or thumbs down. Requires a valid Pandora account and credentials. 
+Perform a search for one of your Pandora stations and begin playing. Give the currently playing song a thumbs up or thumbs down. Requires a valid Pandora account and credentials.
 
 The following endpoints are available:
 
 ```
 /RoomName/pandora/play/{station name}     Plays the closest match to the specified station name in your list of Pandora stations
 /RoomName/pandora/thumbsup                Gives the current playing Pandora song a thumbs up
-/RoomName/pandora/thumbsdown              Gives the current playing Pandora song a thumbs down 
+/RoomName/pandora/thumbsdown              Gives the current playing Pandora song a thumbs down
 ```
 
 Your Pandora credentials need to be added to the settings.json file
@@ -756,22 +826,26 @@ Your Pandora credentials need to be added to the settings.json file
             "password": "your-pandora-password"
           }
   ```
- 
+
 
 Tunein
 ----------------------
-Given a station id this will play the streaming broadcast via the tunein service. You can find tunein station ids via services like [radiotime](http://opml.radiotime.com/)
+Given a station id this will play or set the streaming broadcast via the tunein service. You can find tunein station ids via services like [radiotime](http://opml.radiotime.com/)
 
 The following endpoint is available:
 
 ```
 /RoomName/tunein/play/{station id}
+Will set and start playing given Station id
+
+/RoomName/tunein/set/{station id}
+Will set without start playing given Station id
 ```
- 
+
 
 Music Search and Play
 ----------------------
-Perform a search for a song, artist, album or station and begin playing. Supports Apple Music, Spotify, Deezer, Deezer Elite, and your local Music Library. 
+Perform a search for a song, artist, album or station and begin playing. Supports Apple Music, Spotify, Deezer, Deezer Elite, and your local Music Library.
 
 The following endpoint is available:
 
@@ -780,13 +854,13 @@ The following endpoint is available:
 
 Service options: apple, spotify, deezer, elite, library
 
-Type options for apple, spotify, deezer, and elite: album, song, station 
-Station plays a Pandora like artist radio station for a specified artist name. 
+Type options for apple, spotify, deezer, and elite: album, song, station, playlist
+Station plays a Pandora like artist radio station for a specified artist name.
 Apple Music also supports song titles and artist name + song title.
 
-Type options for library: album, song, load 
-Load performs an initial load or relaod of the local Sonos music library. 
-The music library will also get loaded the first time that the library service is 
+Type options for library: album, song, load
+Load performs an initial load or relaod of the local Sonos music library.
+The music library will also get loaded the first time that the library service is
 used if the load command has not been issued before.
 
 Search terms for song for all services: artist name, song title, artist name + song title
@@ -797,8 +871,8 @@ Search terms for station for spotify and deezer: artist name
 Search terms for station for library: not supported
 
 Specifying just an artist name will load the queue with up to 50 of the artist's most popular songs
-Specifying a song title or artist + song title will insert the closest match to the song into 
-the queue and start playing it. More than 50 tracks can be loaded from the local library by using 
+Specifying a song title or artist + song title will insert the closest match to the song into
+the queue and start playing it. More than 50 tracks can be loaded from the local library by using
 library.randomQueueLimit in the settings.json file to set the maximum to a higher value.
 
 Examples:
@@ -809,6 +883,9 @@ Examples:
 /Den/musicsearch/spotify/album/abbey+road
 /Playroom/musicsearch/library/album/red+hot+chili+peppers+the+getaway
 /Kitchen/musicsearch/spotify/album/dark+necessities
+
+/Kitchen/musicsearch/spotify/playlist/morning+acoustic
+/Kitchen/musicsearch/spotify/playlist/dinner+with+friends
 
 /Den/musicsearch/spotify/station/red+hot+chili+peppers
 /Kitchen/musicsearch/apple/station/dark+necessities  (Only Apple Music supports song titles)
@@ -882,3 +959,54 @@ DOCKER
 -----
 
 Docker usage is maintained by [Chris Nesbitt-Smith](https://github.com/chrisns) at [chrisns/docker-node-sonos-http-api](https://github.com/chrisns/docker-node-sonos-http-api)
+
+## FIREWALL
+
+If you are running this in an environment where you manually have to unblock traffic to and from the machine, the following traffic needs to be allowed:
+
+### Incoming
+```
+TCP, port 3500 (Sonos events)
+UDP, port 1905 (Sonos initial discovery)
+TCP, port 5005 (if using the default api port)
+TCP, port 5006 (if using https support, optional)
+```
+### Outgoing
+```
+TCP, port 1400 (Sonos control commands)
+UDP, port 1900 (Sonos initial discovery)
+TCP, whatever port used for webhooks (optional)
+TCP, port 80/443 (for looking up hig res cover arts on various music services)
+```
+
+The UDP traffic is a mixture of multicast (outgoing), broadcast (outgoing) and unicast (incoming). The multicast address is 239.255.255.250, the broadcast is 255.255.255.255 and the unicast is from the Sonos players.
+
+If port 3500 is occupied while trying to bind it, it will try using 3501, 3502, 3503 etc. You would need to adjust your firewall rules accordingly, if running multiple instances of this software, or any other software utilizing these ports. 
+
+### Projects built with this API
+
+**Alexa For Sonos (Alexa Skills)**
+
+Amazon Alexa voice layer on top of the amazing NodeJS component
+https://github.com/hypermoose/AlexaForSonos
+
+**JukeBot (Ruby)**
+
+A Slack bot that can control a Sonos instance. Custom spotify integration to find music.
+https://github.com/estiens/jukebot
+
+**Sonos Controller (JS / Electron)**
+
+A Sonos controller, built with the Electron framework.
+https://github.com/anton-christensen/sonos-controller
+
+**Sonos Cron (PHP)**
+
+Service for retrieving commands from an AWS SQS queue and passing them to an instance of the Sonos HTTP API 
+https://github.com/cjrpaterson/sonos-cron
+
+**Sonos Push Server (JS)**
+
+A Node server to receive notifications from node-sonos-http-api and push them via socket.io to the clients. 
+https://github.com/TimoKorinth/sonos-push-server
+
